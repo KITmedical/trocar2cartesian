@@ -2,7 +2,7 @@
 <package>
   <name>trocar2cartesian_msgs</name>
   <version>0.0.0</version>
-  <description>Translate between (get,set)_trocar (trocar2cartesian_msgs/TrocarPose) topics and (get,set)_cartesian (geometry_msgs/Pose) topics </description>
+  <description>Provides msgs and srvs for trocar2cartesian package</description>
   <maintainer email="andreas.bihlmaier@gmx.de">Andreas Bihlmaier</maintainer>
   <license>MIT</license>
 
