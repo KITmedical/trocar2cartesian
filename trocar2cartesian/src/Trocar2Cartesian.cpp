@@ -14,13 +14,6 @@ Trocar2Cartesian::Trocar2Cartesian(const std::string& robotName, const std::stri
    m_baseTfName(baseTfName),
    m_flangeTfName(flangeTfName)
 {
-  //Eigen::AngleAxisd xAngle(M_PI, Eigen::Vector3d::UnitX());
-  //Eigen::AngleAxisd yAngle(M_PI, Eigen::Vector3d::UnitY());
-  //Eigen::AngleAxisd zAngle(0, Eigen::Vector3d::UnitZ());
-  //Eigen::Quaternion<double> q = xAngle * yAngle * zAngle;
-  Eigen::Quaternion<double> q;
-  m_correctTrocarRotation = q.matrix();
-
   m_getCartesianTopicSub = m_node.subscribe<geometry_msgs::Pose>("get_cartesian", 1, &Trocar2Cartesian::getCartesianCallback, this);
   m_setTrocarService = m_node.advertiseService("set_trocar", &Trocar2Cartesian::setTrocarCallback, this);
 }
@@ -66,7 +59,6 @@ Trocar2Cartesian::trocarpose2pose(const trocar2cartesian_msgs::TrocarPose& troca
   Eigen::Vector3d trocar_to_pose(r * sin(theta) * cos(phi),
                                  r * sin(theta) * sin(phi),
                                  r * cos(theta));
-  trocar_to_pose = m_correctTrocarRotation * trocar_to_pose;
 
   Eigen::Vector3d vecUp(-1, 0, 0);
   Eigen::Vector3d vecZ(trocar_to_pose);

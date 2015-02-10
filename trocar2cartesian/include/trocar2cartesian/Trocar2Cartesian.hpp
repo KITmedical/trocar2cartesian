@@ -71,7 +71,6 @@ class Trocar2Cartesian
     geometry_msgs::Pose m_targetCartesianPose;
     std::string m_instrument_tip_frame;
     tf::StampedTransform m_instrument_tipMVflange; // assume this constant
-    Eigen::Matrix3d m_correctTrocarRotation;
     bool m_publishTrocarTfThreadRunning = false;
     std::thread m_publishTrocarTfThread;
 
