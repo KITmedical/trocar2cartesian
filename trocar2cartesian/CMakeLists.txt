@@ -6,6 +6,7 @@ project(trocar2cartesian)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  tf
   message_runtime
   trocar2cartesian_msgs
 )

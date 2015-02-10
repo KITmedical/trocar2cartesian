@@ -5,6 +5,7 @@
 
 // library includes
 #include <ros/ros.h>
+#include <tf/transform_listener.h>
 
 // custom includes
 #include <trocar2cartesian_msgs/TrocarPose.h>
@@ -27,7 +28,7 @@ class Trocar2Cartesian
 
 
     // constructors
-    Trocar2Cartesian();
+    Trocar2Cartesian(const std::string& baseTfName, const std::string& flangeTfName);
 
     // overwritten methods
 
@@ -46,16 +47,22 @@ class Trocar2Cartesian
     // methods
     void getCartesianCallback(const geometry_msgs::Pose::ConstPtr& poseMsg);
     bool setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& request, trocar2cartesian_msgs::SetTrocar::Response& response);
+    void setTrocarPoseCallback(const trocar2cartesian_msgs::TrocarPose::ConstPtr& trocarMsg);
 
     // variables
     ros::NodeHandle m_node;
     ros::Publisher m_setCartesianTopicPub;
     ros::Subscriber m_getCartesianTopicSub;
     ros::ServiceServer m_setTrocarService;
+    tf::TransformListener m_tfListener;
 
+    std::string m_baseTfName;
+    std::string m_flangeTfName;
     geometry_msgs::Pose m_trocarPose;
     geometry_msgs::Pose m_lastCartesianPose;
     geometry_msgs::Pose m_targetCartesianPose;
+    std::string m_instrument_tip_frame;
+    tf::StampedTransform m_instrument_tipMVflange; // assume this constant
 
 
 };
