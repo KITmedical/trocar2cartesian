@@ -5,6 +5,7 @@
 // library includes
 
 // custom includes
+#include <ahbros.hpp>
 
 
 /*---------------------------------- public: -----------------------------{{{-*/
@@ -33,15 +34,21 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
 {
   response.success = false;
 
-  // TODO
-  // transform between frame_id (e.g. endoscope_tip) and flange (cartesian topic position)
-  tf::StampedTransform trocar_frameMVbase;
+  tf::StampedTransform trocar_frameCBTbase;
   try {
-    m_tfListener.lookupTransform(request.trocar_frame, m_baseTfName, ros::Time(0), trocar_frameMVbase);
+    m_tfListener.lookupTransform(m_baseTfName, request.trocar_frame, ros::Time(0), trocar_frameCBTbase);
   } catch (tf::TransformException ex) {
     ROS_ERROR("%s", ex.what());
     return false;
   }
+  tf::Pose trocar_pose_trocar_frame;
+  tf::poseMsgToTF(request.trocar_pose, trocar_pose_trocar_frame);
+  tf::Pose trocar_pose_base = trocar_frameCBTbase * trocar_pose_trocar_frame;
+  std::cout << "trocar_pose_trocar_frame: " << ahb::string::toString(trocar_pose_trocar_frame) << std::endl;
+  std::cout << "trocar_frameCBTbase: " << ahb::string::toString(trocar_frameCBTbase) << std::endl;
+  std::cout << "trocar_pose_base: " << ahb::string::toString(trocar_pose_base) << std::endl;
+
+  // TODO cont (always work in _base)
 
   m_instrument_tip_frame = request.instrument_tip_frame;
   try {

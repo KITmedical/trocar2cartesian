@@ -9,6 +9,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   message_runtime
   trocar2cartesian_msgs
+  ahbstring
+  ahbros
 )
 
 ## System dependencies are found with CMake's conventions
