@@ -9,12 +9,14 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   message_runtime
   trocar2cartesian_msgs
+  cmake_modules
   ahbstring
   ahbros
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+find_package(Eigen REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -93,12 +95,15 @@ catkin_package(
 ## Build ##
 ###########
 
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -Wall -Werror")
+
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
   include/${PROJECT_NAME}
   ${catkin_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
@@ -112,6 +117,11 @@ add_executable(trocar2cartesian_node src/trocar2cartesian_node.cpp)
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(trocar2cartesian_node trocar2cartesian_generate_messages_cpp)
+
+target_link_libraries(trocar2cartesian
+  ${Eigen_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(trocar2cartesian_node
