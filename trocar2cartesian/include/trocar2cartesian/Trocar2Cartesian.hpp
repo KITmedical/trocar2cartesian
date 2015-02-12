@@ -55,6 +55,8 @@ class Trocar2Cartesian
     void publishTrocarTfLoop();
     bool setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& request, trocar2cartesian_msgs::SetTrocar::Response& response);
     void setTrocarPoseCallback(const trocar2cartesian_msgs::TrocarPose::ConstPtr& trocarMsg);
+    void moveIntoTrocar(const tf::Pose& target, double velocity_translation, double velocity_rotation);
+    void move(const trocar2cartesian_msgs::TrocarPose& target, double velocity);
 
     // variables
     ros::NodeHandle m_node;
@@ -73,6 +75,7 @@ class Trocar2Cartesian
     tf::StampedTransform m_instrument_tipMVflange; // assume this constant
     bool m_publishTrocarTfThreadRunning = false;
     std::thread m_publishTrocarTfThread;
+
 
     tf::TransformBroadcaster m_footfBroadcaster; // TODO rm debug only
 

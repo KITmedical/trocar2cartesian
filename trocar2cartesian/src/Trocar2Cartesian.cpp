@@ -26,6 +26,7 @@ Trocar2Cartesian::Trocar2Cartesian(const std::string& robotName, const std::stri
    m_flangeTfName(flangeTfName)
 {
   m_getCartesianTopicSub = m_node.subscribe<geometry_msgs::Pose>("get_cartesian", 1, &Trocar2Cartesian::getCartesianCallback, this);
+  m_setCartesianTopicPub = m_node.advertise<geometry_msgs::Pose>("set_cartesian", 1);
   m_setTrocarService = m_node.advertiseService("set_trocar", &Trocar2Cartesian::setTrocarCallback, this);
 }
 
@@ -186,11 +187,11 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
     return false;
   }
 
-
-  // if (unprojection of) projection of current pose to trocar params is 'close' to current pose
+  // TODO
   //   slowly move into trocar-projected pose
-  //   start set_trocar sub, get_trocar pub, set_cartesian pub
-  // else success = false
+  moveIntoTrocar(reprojected_flange_base, 0.1, 0.1);
+  
+  //   start set_trocar sub, get_trocar pub
 
   response.success = true;
   return true;
@@ -202,5 +203,24 @@ Trocar2Cartesian::setTrocarPoseCallback(const trocar2cartesian_msgs::TrocarPose:
   if (trocarMsg->instrument_tip_frame != m_instrument_tip_frame) {
     return;
   }
+}
+
+void
+moveIntoTrocar(const tf::Pose& target, double velocity_translation, double velocity_rotation)
+{
+  // TODO use gpi?
+  /*
+  Eigen::Vector3d target_trans = tf2eigenVector(target.getOrigin());
+  Eigen::Quaterniond target_quat = tf2eigenQuaternion(target.getRotation());
+
+  Eigen::Vector3d curr_trans = tf2eigenVector(m_lastCartesianPose // todo convert
+  */
+}
+
+void
+move(const trocar2cartesian_msgs::TrocarPose& target, double velocity)
+{
+  // TODO interpolate trocarpose values
+  // use gpi?
 }
 /*------------------------------------------------------------------------}}}-*/
