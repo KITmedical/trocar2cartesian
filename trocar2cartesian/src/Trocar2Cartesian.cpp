@@ -60,7 +60,7 @@ Trocar2Cartesian::trocarpose2pose(const trocar2cartesian_msgs::TrocarPose& troca
                                  r * sin(theta) * sin(phi),
                                  r * cos(theta));
 
-  Eigen::Vector3d vecUp(-1, 0, 0);
+  Eigen::Vector3d vecUp(0, 0, -1);
   Eigen::Vector3d vecZ(trocar_to_pose);
   if (vecZ.norm() == 0) {
     ROS_ERROR("|vecZ| is 0");
@@ -71,6 +71,10 @@ Trocar2Cartesian::trocarpose2pose(const trocar2cartesian_msgs::TrocarPose& troca
   vecX /= vecX.norm();
   Eigen::Vector3d vecY = vecZ.cross(vecX); // down
   vecY /= vecY.norm();
+  //std::cout << "vecUp: " << vecUp << std::endl;
+  //std::cout << "vecZ: " << vecZ << std::endl;
+  //std::cout << "vecX: " << vecX << std::endl;
+  //std::cout << "vecY: " << vecY << std::endl;
 
   pose.setOrigin(tf::Vector3(trocar_to_pose[0] + m_trocarPose.getOrigin()[0],
                              trocar_to_pose[1] + m_trocarPose.getOrigin()[1],
@@ -142,7 +146,7 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
 
   m_instrument_tip_frame = request.instrument_tip_frame;
   try {
-    m_tfListener.lookupTransform(m_instrument_tip_frame, m_flangeTfName, ros::Time(0), m_instrument_tipMVflange);
+    m_tfListener.lookupTransform(m_flangeTfName, m_instrument_tip_frame, ros::Time(0), m_instrument_tipMVflange);
   } catch (tf::TransformException ex) {
     ROS_ERROR("%s", ex.what());
     return false;
