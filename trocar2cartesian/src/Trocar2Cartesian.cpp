@@ -7,6 +7,17 @@
 // custom includes
 #include <ahbros.hpp>
 
+Eigen::Vector3d
+tf2eigenVector(const tf::Vector3& tfvec)
+{
+  return Eigen::Vector3d(tfvec[0], tfvec[1], tfvec[2]);
+}
+
+Eigen::Quaterniond
+tf2eigenQuaternion(const tf::Quaternion& tfquat)
+{
+  return Eigen::Quaterniond(tfquat.getW(), tfquat.getX(), tfquat.getY(), tfquat.getZ());
+}
 
 /*---------------------------------- public: -----------------------------{{{-*/
 Trocar2Cartesian::Trocar2Cartesian(const std::string& robotName, const std::string& baseTfName, const std::string& flangeTfName)
@@ -23,8 +34,8 @@ Trocar2Cartesian::pose2trocarpose(const tf::Pose& pose)
 {
   trocar2cartesian_msgs::TrocarPose trocarPose;
 
-  Eigen::Vector3d pose_translation(pose.getOrigin()[0], pose.getOrigin()[1], pose.getOrigin()[2]);
-  Eigen::Vector3d trocar_translation(m_trocarPose.getOrigin()[0], m_trocarPose.getOrigin()[1], m_trocarPose.getOrigin()[2]);
+  Eigen::Vector3d pose_translation = tf2eigenVector(pose.getOrigin());
+  Eigen::Vector3d trocar_translation = tf2eigenVector(m_trocarPose.getOrigin());
 
   Eigen::Vector3d trocar_to_pose = pose_translation - trocar_translation;
   double r = trocar_to_pose.norm();
@@ -157,13 +168,23 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
   tf::Pose instrument_tip_base = flange_base * m_instrument_tipMVflange;
   trocar2cartesian_msgs::TrocarPose initial_instrument_tip_trocarpose = pose2trocarpose(instrument_tip_base);
   tf::Pose reprojected_instrument_tip_base = trocarpose2pose(initial_instrument_tip_trocarpose);
+  tf::Pose reprojected_flange_base = reprojected_instrument_tip_base * m_instrument_tipMVflange.inverse();
+  double dist_translation = (tf2eigenVector(flange_base.getOrigin()) - tf2eigenVector(reprojected_flange_base.getOrigin())).norm();
+  double dist_rotation = tf2eigenQuaternion(flange_base.getRotation()).angularDistance(tf2eigenQuaternion(reprojected_flange_base.getRotation()));
+
   std::cout << "flange_base: " << ahb::string::toString(flange_base) << std::endl;
   std::cout << "instrument_tip_base: " << ahb::string::toString(instrument_tip_base) << std::endl;
   std::cout << "initial_instrument_tip_trocarpose:\n" << initial_instrument_tip_trocarpose << std::endl;
   std::cout << "reprojected_instrument_tip_base: " << ahb::string::toString(reprojected_instrument_tip_base) << std::endl;
-  m_footfBroadcaster.sendTransform(tf::StampedTransform(reprojected_instrument_tip_base, ros::Time::now(), m_baseTfName, m_robotName + "_trocar_foo"));
+  m_footfBroadcaster.sendTransform(tf::StampedTransform(reprojected_instrument_tip_base, ros::Time::now(), m_baseTfName, m_robotName + "_trocar_tip"));
+  std::cout << "reprojected_flange_base: " << ahb::string::toString(reprojected_flange_base) << std::endl;
+  m_footfBroadcaster.sendTransform(tf::StampedTransform(reprojected_flange_base, ros::Time::now(), m_baseTfName, m_robotName + "_trocar_flange"));
+  std::cout << "dist: translation=" << dist_translation << " rotation=" << dist_rotation << std::endl;
 
-  // TODO cont (always work in _base)
+  if (dist_translation > 0.2 && dist_rotation > M_PI/6) {
+    ROS_ERROR("Robot would move too far in order to be in valid trocar position");
+    return false;
+  }
 
 
   // if (unprojection of) projection of current pose to trocar params is 'close' to current pose
