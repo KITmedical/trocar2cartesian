@@ -1,0 +1,9 @@
+<launch>
+  <group ns="/robots/lwr1">
+    <node name="trocar2cartesian_lwr1" pkg="trocar2cartesian" type="trocar2cartesian_node" output="screen">
+      <param name="robot_name" value="lwr1" />
+      <param name="base_tf_name" value="or_table_with_lwr1_with_wolf_endocam_hd_with_wolf_panoview_0deg__lwr_1_with_wolf_endocam_hd_with_wolf_panoview_0deg__lwr_1_with_marker_and_coupling__lwr_1_socket__lwr1__lwr1_world_link" />
+      <param name="flange_tf_name" value="or_table_with_lwr1_with_wolf_endocam_hd_with_wolf_panoview_0deg__lwr_1_with_wolf_endocam_hd_with_wolf_panoview_0deg__lwr_1_with_marker_and_coupling__lwr_1_socket__lwr1__lwr1_arm_7_link" />
+    </node>
+  </group>
+</launch>

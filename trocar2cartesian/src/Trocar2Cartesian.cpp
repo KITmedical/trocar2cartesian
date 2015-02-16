@@ -44,7 +44,9 @@ Trocar2Cartesian::pose2trocarpose(const tf::Pose& pose)
   double y = trocar_to_pose[1];
   double z = trocar_to_pose[2];
   double theta = acos(z / r);
-  double phi = atan(y / x);
+  double phi = atan2(y, x);
+  //std::cout << "trocar_to_pose: " << trocar_to_pose << std::endl;
+  //std::cout << "r=" << r << " theta=" << theta << " phi=" << phi << std::endl;
 
   trocarPose.r = r;
   trocarPose.theta = theta;
@@ -73,7 +75,7 @@ Trocar2Cartesian::trocarpose2pose(const trocar2cartesian_msgs::TrocarPose& troca
                                  r * cos(theta));
 
   Eigen::Vector3d vecUp(0, 0, -1);
-  Eigen::Vector3d vecZ(trocar_to_pose);
+  Eigen::Vector3d vecZ(trocar_to_pose); // forward
   if (vecZ.norm() == 0) {
     ROS_ERROR("|vecZ| is 0");
     throw std::logic_error("|vecZ| is 0");
@@ -83,6 +85,7 @@ Trocar2Cartesian::trocarpose2pose(const trocar2cartesian_msgs::TrocarPose& troca
   vecX /= vecX.norm();
   Eigen::Vector3d vecY = vecZ.cross(vecX); // down
   vecY /= vecY.norm();
+  //std::cout << "trocar_to_pose: " << trocar_to_pose << std::endl;
   //std::cout << "vecUp: " << vecUp << std::endl;
   //std::cout << "vecZ: " << vecZ << std::endl;
   //std::cout << "vecX: " << vecX << std::endl;
@@ -206,19 +209,14 @@ Trocar2Cartesian::setTrocarPoseCallback(const trocar2cartesian_msgs::TrocarPose:
 }
 
 void
-moveIntoTrocar(const tf::Pose& target, double velocity_translation, double velocity_rotation)
+Trocar2Cartesian::moveIntoTrocar(const tf::Pose& target, double velocity_translation, double velocity_rotation)
 {
-  // TODO use gpi?
-  /*
-  Eigen::Vector3d target_trans = tf2eigenVector(target.getOrigin());
-  Eigen::Quaterniond target_quat = tf2eigenQuaternion(target.getRotation());
-
-  Eigen::Vector3d curr_trans = tf2eigenVector(m_lastCartesianPose // todo convert
-  */
+  // TODO use
+  // https://gitlab.ira.uka.de/medical/lwr_constrained_kinematics/blob/master/src/CartesianInterpolator.cpp
 }
 
 void
-move(const trocar2cartesian_msgs::TrocarPose& target, double velocity)
+Trocar2Cartesian::move(const trocar2cartesian_msgs::TrocarPose& target, double velocity)
 {
   // TODO interpolate trocarpose values
   // use gpi?

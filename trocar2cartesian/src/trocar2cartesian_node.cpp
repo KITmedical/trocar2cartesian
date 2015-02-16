@@ -6,14 +6,14 @@ int
 main(int argc, char** argv)
 {
   ros::init(argc, argv, "trocar2cartesian");
-  ros::NodeHandle nh;
+  ros::NodeHandle pnh("~");
 
   std::string robotName;
-  nh.param<std::string>("robot_name", robotName, "robot");
+  pnh.param<std::string>("robot_name", robotName, "robot");
   std::string baseTfName;
-  nh.param<std::string>("base_tf_name", baseTfName, "robot_base");
+  pnh.param<std::string>("base_tf_name", baseTfName, "robot_base");
   std::string flangeTfName;
-  nh.param<std::string>("flange_tf_name", flangeTfName, "robot_flange");
+  pnh.param<std::string>("flange_tf_name", flangeTfName, "robot_flange");
 
   Trocar2Cartesian trocar2Cartesian(robotName, baseTfName, flangeTfName);
 
