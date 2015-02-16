@@ -251,8 +251,6 @@ Trocar2Cartesian::moveIntoTrocar(const tf::Pose& target, double velocity_transla
     std::lock_guard<std::mutex> guard(m_lastCartesianPoseMutex);
     tf::poseMsgToTF(m_lastCartesianPose, lastPose);
   }
-  Vector3d prevPos = tf2eigenVector(lastPose.getOrigin());
-  Vector4d prevOri = tf2eigenQuaternionAsVec(lastPose.getRotation());
   tf::Pose prevPose = lastPose;
   unsigned notMoving = 0;
   do {
@@ -271,8 +269,6 @@ Trocar2Cartesian::moveIntoTrocar(const tf::Pose& target, double velocity_transla
     }
     Vector3d lastPos = tf2eigenVector(lastPose.getOrigin());
     Vector4d lastOri = tf2eigenQuaternionAsVec(lastPose.getRotation());
-    poseInterpolator.pVelLast = (lastPos - prevPos) / dt;
-    poseInterpolator.qVelLast = (lastOri - prevOri) / dt;
     poseInterpolator.posLast = lastPos;
     poseInterpolator.oriLast = lastOri;
     poseInterpolator.interpolate();
@@ -288,8 +284,6 @@ Trocar2Cartesian::moveIntoTrocar(const tf::Pose& target, double velocity_transla
     m_setCartesianTopicPub.publish(nowPoseMsg);
     std::cout << nowPoseMsg << std::endl;
 
-    prevPos = lastPos;
-    prevOri = lastOri;
     prevPose = lastPose;
     rate.sleep();
   } while (ros::ok() && !isClose(lastPose, target, 0.001));
