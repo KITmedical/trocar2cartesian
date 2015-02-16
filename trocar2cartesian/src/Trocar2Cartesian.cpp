@@ -6,6 +6,7 @@
 
 // custom includes
 #include <ahbros.hpp>
+#include <cartesian_interpolator/CartesianInterpolator.hpp>
 
 Eigen::Vector3d
 tf2eigenVector(const tf::Vector3& tfvec)
@@ -17,6 +18,30 @@ Eigen::Quaterniond
 tf2eigenQuaternion(const tf::Quaternion& tfquat)
 {
   return Eigen::Quaterniond(tfquat.getW(), tfquat.getX(), tfquat.getY(), tfquat.getZ());
+}
+
+Eigen::Vector4d
+tf2eigenQuaternionAsVec(const tf::Quaternion& tfquat)
+{
+  return Eigen::Vector4d(tfquat.getW(), tfquat.getX(), tfquat.getY(), tfquat.getZ());
+}
+
+double
+distTranslation(const tf::Pose& pose1, const tf::Pose& pose2)
+{
+  return (tf2eigenVector(pose1.getOrigin()) - tf2eigenVector(pose2.getOrigin())).norm();
+}
+
+double
+distRotation(const tf::Pose& pose1, const tf::Pose& pose2)
+{
+  return tf2eigenQuaternion(pose1.getRotation()).angularDistance(tf2eigenQuaternion(pose2.getRotation()));
+}
+
+bool
+isClose(const tf::Pose& pose1, const tf::Pose& pose2, double delta)
+{
+  return ((distTranslation(pose1, pose2) + distRotation(pose1, pose2)) < delta);
 }
 
 /*---------------------------------- public: -----------------------------{{{-*/
@@ -115,7 +140,10 @@ void
 Trocar2Cartesian::getCartesianCallback(const geometry_msgs::Pose::ConstPtr& poseMsg)
 {
   //std::cout << "getCartesianCallback: poseMsg=\n" << *poseMsg << std::endl;
-  m_lastCartesianPose = *poseMsg;
+  {
+    std::lock_guard<std::mutex> guard(m_lastCartesianPoseMutex);
+    m_lastCartesianPose = *poseMsg;
+  }
 }
 
 void
@@ -173,8 +201,8 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
   trocar2cartesian_msgs::TrocarPose initial_instrument_tip_trocarpose = pose2trocarpose(instrument_tip_base);
   tf::Pose reprojected_instrument_tip_base = trocarpose2pose(initial_instrument_tip_trocarpose);
   tf::Pose reprojected_flange_base = reprojected_instrument_tip_base * m_instrument_tipMVflange.inverse();
-  double dist_translation = (tf2eigenVector(flange_base.getOrigin()) - tf2eigenVector(reprojected_flange_base.getOrigin())).norm();
-  double dist_rotation = tf2eigenQuaternion(flange_base.getRotation()).angularDistance(tf2eigenQuaternion(reprojected_flange_base.getRotation()));
+  double dist_translation = distTranslation(flange_base, reprojected_flange_base);
+  double dist_rotation = distRotation(flange_base, reprojected_flange_base);
 
   std::cout << "flange_base: " << ahb::string::toString(flange_base) << std::endl;
   std::cout << "instrument_tip_base: " << ahb::string::toString(instrument_tip_base) << std::endl;
@@ -190,9 +218,10 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
     return false;
   }
 
-  // TODO
-  //   slowly move into trocar-projected pose
-  moveIntoTrocar(reprojected_flange_base, 0.1, 0.1);
+  if (!moveIntoTrocar(reprojected_flange_base, 0.1, 0.1)) {
+    ROS_ERROR("Robot could not move into trocar");
+    return false;
+  }
   
   //   start set_trocar sub, get_trocar pub
 
@@ -208,11 +237,64 @@ Trocar2Cartesian::setTrocarPoseCallback(const trocar2cartesian_msgs::TrocarPose:
   }
 }
 
-void
+bool
 Trocar2Cartesian::moveIntoTrocar(const tf::Pose& target, double velocity_translation, double velocity_rotation)
 {
-  // TODO use
-  // https://gitlab.ira.uka.de/medical/lwr_constrained_kinematics/blob/master/src/CartesianInterpolator.cpp
+  double dt = 0.1;
+  CartesianInterpolator poseInterpolator(1, dt); // TODO use velocity_translation, velocity_rotation
+  poseInterpolator.posTarget = tf2eigenVector(target.getOrigin());
+  poseInterpolator.oriTarget = tf2eigenQuaternionAsVec(target.getRotation());
+  ros::Rate rate(1.0/dt);
+
+  tf::Pose lastPose;
+  {
+    std::lock_guard<std::mutex> guard(m_lastCartesianPoseMutex);
+    tf::poseMsgToTF(m_lastCartesianPose, lastPose);
+  }
+  Vector3d prevPos = tf2eigenVector(lastPose.getOrigin());
+  Vector4d prevOri = tf2eigenQuaternionAsVec(lastPose.getRotation());
+  tf::Pose prevPose = lastPose;
+  unsigned notMoving = 0;
+  do {
+    {
+      std::lock_guard<std::mutex> guard(m_lastCartesianPoseMutex);
+      tf::poseMsgToTF(m_lastCartesianPose, lastPose);
+    }
+    if (isClose(lastPose, prevPose, 0.00001)) { // got stuck
+      if (notMoving >= 10) {
+        return false;
+      } else {
+        notMoving++;
+      }
+    } else {
+      notMoving = 0;
+    }
+    Vector3d lastPos = tf2eigenVector(lastPose.getOrigin());
+    Vector4d lastOri = tf2eigenQuaternionAsVec(lastPose.getRotation());
+    poseInterpolator.pVelLast = (lastPos - prevPos) / dt;
+    poseInterpolator.qVelLast = (lastOri - prevOri) / dt;
+    poseInterpolator.posLast = lastPos;
+    poseInterpolator.oriLast = lastOri;
+    poseInterpolator.interpolate();
+
+    geometry_msgs::Pose nowPoseMsg;
+    nowPoseMsg.position.x = poseInterpolator.posNow[0];
+    nowPoseMsg.position.y = poseInterpolator.posNow[1];
+    nowPoseMsg.position.z = poseInterpolator.posNow[2];
+    nowPoseMsg.orientation.w = poseInterpolator.oriNow[0];
+    nowPoseMsg.orientation.x = poseInterpolator.oriNow[1];
+    nowPoseMsg.orientation.y = poseInterpolator.oriNow[2];
+    nowPoseMsg.orientation.z = poseInterpolator.oriNow[3];
+    m_setCartesianTopicPub.publish(nowPoseMsg);
+    std::cout << nowPoseMsg << std::endl;
+
+    prevPos = lastPos;
+    prevOri = lastOri;
+    prevPose = lastPose;
+    rate.sleep();
+  } while (ros::ok() && !isClose(lastPose, target, 0.001));
+
+  return true;
 }
 
 void

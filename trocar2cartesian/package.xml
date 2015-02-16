@@ -30,8 +30,10 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>trocar2cartesian_msgs</build_depend>
+  <build_depend>cartesian_interpolator</build_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>trocar2cartesian_msgs</run_depend>
+  <run_depend>cartesian_interpolator</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

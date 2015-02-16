@@ -3,6 +3,7 @@
 
 // system includes
 #include <thread>
+#include <mutex>
 
 // library includes
 #include <ros/ros.h>
@@ -55,7 +56,7 @@ class Trocar2Cartesian
     void publishTrocarTfLoop();
     bool setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& request, trocar2cartesian_msgs::SetTrocar::Response& response);
     void setTrocarPoseCallback(const trocar2cartesian_msgs::TrocarPose::ConstPtr& trocarMsg);
-    void moveIntoTrocar(const tf::Pose& target, double velocity_translation, double velocity_rotation);
+    bool moveIntoTrocar(const tf::Pose& target, double velocity_translation, double velocity_rotation);
     void move(const trocar2cartesian_msgs::TrocarPose& target, double velocity);
 
     // variables
@@ -70,6 +71,7 @@ class Trocar2Cartesian
     std::string m_flangeTfName;
     tf::Pose m_trocarPose;
     geometry_msgs::Pose m_lastCartesianPose;
+    std::mutex m_lastCartesianPoseMutex;
     geometry_msgs::Pose m_targetCartesianPose;
     std::string m_instrument_tip_frame;
     tf::StampedTransform m_instrument_tipMVflange; // assume this constant
