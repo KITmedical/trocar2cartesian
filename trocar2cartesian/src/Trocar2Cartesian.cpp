@@ -59,7 +59,7 @@ Trocar2Cartesian::Trocar2Cartesian(const std::string& robotName, const std::stri
    m_trocarGpiAccelMaxBuffer(trocarParams, m_accelMax)
 {
   m_trocarGpiPosMinBuffer[0] = 0.01;
-  m_trocarGpiPosMinBuffer[1] = 0;
+  m_trocarGpiPosMinBuffer[1] = M_PI/2;
   m_trocarGpiPosMinBuffer[2] = -M_PI;
   m_trocarGpiPosMaxBuffer[0] = 0.4;
   m_trocarGpiPosMaxBuffer[1] = M_PI;
