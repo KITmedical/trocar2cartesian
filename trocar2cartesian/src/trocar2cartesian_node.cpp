@@ -18,7 +18,7 @@ main(int argc, char** argv)
   Trocar2Cartesian trocar2Cartesian(robotName, baseTfName, flangeTfName);
 
   std::cout << "Spinning" << std::endl;
-  ros::MultiThreadedSpinner spinner(2); // >=2 threads required to handle callbacks in parallel to setTrocarCallback()
+  ros::MultiThreadedSpinner spinner(4); // >=2 threads required to handle callbacks in parallel to setTrocarCallback()
   spinner.spin();
 
   return 0;

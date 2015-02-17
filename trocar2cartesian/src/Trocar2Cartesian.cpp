@@ -48,8 +48,32 @@ isClose(const tf::Pose& pose1, const tf::Pose& pose2, double delta)
 Trocar2Cartesian::Trocar2Cartesian(const std::string& robotName, const std::string& baseTfName, const std::string& flangeTfName)
   :m_robotName(robotName),
    m_baseTfName(baseTfName),
-   m_flangeTfName(flangeTfName)
+   m_flangeTfName(flangeTfName),
+   m_trocarGpi(trocarParams),
+   m_trocarGpiPosCurrentBuffer(trocarParams, 0),
+   m_trocarGpiPosTargetBuffer(trocarParams, 0),
+   m_trocarGpiPosMinBuffer(trocarParams, 0),
+   m_trocarGpiPosMaxBuffer(trocarParams, 0),
+   m_trocarGpiVelCurrentBuffer(trocarParams, 0),
+   m_trocarGpiVelMaxBuffer(trocarParams, m_velMax),
+   m_trocarGpiAccelMaxBuffer(trocarParams, m_accelMax)
 {
+  m_trocarGpiPosMinBuffer[0] = 0.01;
+  m_trocarGpiPosMinBuffer[1] = 0;
+  m_trocarGpiPosMinBuffer[2] = -M_PI;
+  m_trocarGpiPosMaxBuffer[0] = 0.4;
+  m_trocarGpiPosMaxBuffer[1] = M_PI;
+  m_trocarGpiPosMaxBuffer[2] = M_PI;
+  m_trocarGpi.setXTarget(m_trocarGpiPosTargetBuffer);
+  m_trocarGpi.setXLast(m_trocarGpiPosCurrentBuffer);
+  m_trocarGpi.setVLast(m_trocarGpiVelCurrentBuffer);
+  m_trocarGpi.setXMin(m_trocarGpiPosMinBuffer);
+  m_trocarGpi.setXMax(m_trocarGpiPosMaxBuffer);
+  m_trocarGpi.setVMax(m_trocarGpiVelMaxBuffer);
+  m_trocarGpi.setAMax(m_trocarGpiAccelMaxBuffer);
+  m_trocarGpi.setDt(m_trocarPeriod);
+  m_trocarGpi.setMode(1);
+
   m_getCartesianTopicSub = m_node.subscribe<geometry_msgs::Pose>("get_cartesian", 1, &Trocar2Cartesian::getCartesianCallback, this);
   m_setCartesianTopicPub = m_node.advertise<geometry_msgs::Pose>("set_cartesian", 1);
   m_setTrocarService = m_node.advertiseService("set_trocar", &Trocar2Cartesian::setTrocarCallback, this);
@@ -73,6 +97,7 @@ Trocar2Cartesian::pose2trocarpose(const tf::Pose& pose)
   //std::cout << "trocar_to_pose: " << trocar_to_pose << std::endl;
   //std::cout << "r=" << r << " theta=" << theta << " phi=" << phi << std::endl;
 
+  trocarPose.instrument_tip_frame = m_instrument_tip_frame;
   trocarPose.r = r;
   trocarPose.theta = theta;
   trocarPose.phi = phi;
@@ -144,6 +169,27 @@ Trocar2Cartesian::getCartesianCallback(const geometry_msgs::Pose::ConstPtr& pose
     std::lock_guard<std::mutex> guard(m_lastCartesianPoseMutex);
     m_lastCartesianPose = *poseMsg;
   }
+
+  if (m_inTrocar) {
+    tf::Pose flange_base;
+    tf::poseMsgToTF(m_lastCartesianPose, flange_base);
+    tf::Pose instrument_tip_base = flange_base * m_instrument_tipMVflange;
+    trocar2cartesian_msgs::TrocarPose trocarPose = pose2trocarpose(instrument_tip_base);
+    {
+      std::lock_guard<std::mutex> guard(m_lastTrocarPoseMutex);
+      m_lastTrocarPose = trocarPose;
+    }
+    m_getTrocarTopicPub.publish(trocarPose);
+    {
+      std::lock_guard<std::mutex> guard(m_trocarMoveActiveMutex);
+      if (!m_trocarMoveActive) {
+        m_trocarGpiPosCurrentBuffer[0] = trocarPose.r;
+        m_trocarGpiPosCurrentBuffer[1] = trocarPose.theta;
+        m_trocarGpiPosCurrentBuffer[2] = trocarPose.phi;
+        m_trocarGpi.setXLast(m_trocarGpiPosCurrentBuffer);
+      }
+    }
+  }
 }
 
 void
@@ -171,6 +217,14 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
 {
   response.success = false;
 
+  {
+    std::lock_guard<std::mutex> guard(m_trocarMoveActiveMutex);
+    if (m_trocarMoveActive) {
+      ROS_ERROR("Can not change trocar while moving");
+      return false;
+    }
+  }
+
   tf::StampedTransform trocar_frameCBTbase;
   try {
     m_tfListener.lookupTransform(m_baseTfName, request.trocar_frame, ros::Time(0), trocar_frameCBTbase);
@@ -190,6 +244,7 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
   m_instrument_tip_frame = request.instrument_tip_frame;
   try {
     m_tfListener.lookupTransform(m_flangeTfName, m_instrument_tip_frame, ros::Time(0), m_instrument_tipMVflange);
+    m_instrument_tipMVflangeInverse = m_instrument_tipMVflange.inverse();
   } catch (tf::TransformException ex) {
     ROS_ERROR("%s", ex.what());
     return false;
@@ -200,7 +255,7 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
   tf::Pose instrument_tip_base = flange_base * m_instrument_tipMVflange;
   trocar2cartesian_msgs::TrocarPose initial_instrument_tip_trocarpose = pose2trocarpose(instrument_tip_base);
   tf::Pose reprojected_instrument_tip_base = trocarpose2pose(initial_instrument_tip_trocarpose);
-  tf::Pose reprojected_flange_base = reprojected_instrument_tip_base * m_instrument_tipMVflange.inverse();
+  tf::Pose reprojected_flange_base = reprojected_instrument_tip_base * m_instrument_tipMVflangeInverse;
   double dist_translation = distTranslation(flange_base, reprojected_flange_base);
   double dist_rotation = distRotation(flange_base, reprojected_flange_base);
 
@@ -223,7 +278,12 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
     return false;
   }
   
-  //   start set_trocar sub, get_trocar pub
+  m_setTrocarTopicSub = m_node.subscribe<trocar2cartesian_msgs::TrocarPose>("set_trocar", 1, &Trocar2Cartesian::setTrocarPoseCallback, this);
+  m_getTrocarTopicPub = m_node.advertise<trocar2cartesian_msgs::TrocarPose>("get_trocar", 1);
+  m_inTrocar = true;
+  if (!m_trocarMoveThreadRunning) {
+    m_trocarMoveThread = std::thread(&Trocar2Cartesian::trocarMoveLoop, this);
+  }
 
   response.success = true;
   return true;
@@ -233,7 +293,17 @@ void
 Trocar2Cartesian::setTrocarPoseCallback(const trocar2cartesian_msgs::TrocarPose::ConstPtr& trocarMsg)
 {
   if (trocarMsg->instrument_tip_frame != m_instrument_tip_frame) {
+    ROS_ERROR("instrument_tip_frame in message does not match instrument_tip_frame at setup");
     return;
+  }
+
+  m_trocarGpiPosTargetBuffer[0] = trocarMsg->r;
+  m_trocarGpiPosTargetBuffer[1] = trocarMsg->theta;
+  m_trocarGpiPosTargetBuffer[2] = trocarMsg->phi;
+  m_trocarGpi.setXTarget(m_trocarGpiPosTargetBuffer);
+  {
+    std::lock_guard<std::mutex> guard(m_trocarMoveActiveMutex);
+    m_trocarMoveActive = true;
   }
 }
 
@@ -292,9 +362,47 @@ Trocar2Cartesian::moveIntoTrocar(const tf::Pose& target, double velocity_transla
 }
 
 void
-Trocar2Cartesian::move(const trocar2cartesian_msgs::TrocarPose& target, double velocity)
+Trocar2Cartesian::trocarMoveLoop()
 {
-  // TODO interpolate trocarpose values
-  // use gpi?
+  m_trocarMoveThreadRunning = true;
+  ros::Rate rate(1.0/m_trocarPeriod);
+  std::vector<double> lastTrocarGpiPosCurrentBuffer;
+  tf::Pose instrumentPose;
+  tf::Pose flangePose;
+  trocar2cartesian_msgs::TrocarPose trocarPose;
+  geometry_msgs::Pose flangePoseMsg;
+  unsigned notMoving = 0;
+  ROS_INFO("trocarMove thread started");
+  while (ros::ok()) {
+    {
+      std::lock_guard<std::mutex> guard(m_trocarMoveActiveMutex);
+      if (m_trocarMoveActive) {
+        m_trocarGpi.interpolate();
+        m_trocarGpi.getXNow(m_trocarGpiPosCurrentBuffer);
+        m_trocarGpi.getVNow(m_trocarGpiVelCurrentBuffer);
+
+        trocarPose.r = m_trocarGpiPosCurrentBuffer[0];
+        trocarPose.theta = m_trocarGpiPosCurrentBuffer[1];
+        trocarPose.phi = m_trocarGpiPosCurrentBuffer[2];
+        std::cout << trocarPose << std::endl;
+        instrumentPose = trocarpose2pose(trocarPose);
+        flangePose = instrumentPose * m_instrument_tipMVflangeInverse;
+        tf::poseTFToMsg(flangePose, flangePoseMsg);
+        m_setCartesianTopicPub.publish(flangePoseMsg);
+
+        if (std::equal(lastTrocarGpiPosCurrentBuffer.begin(), lastTrocarGpiPosCurrentBuffer.end(), m_trocarGpiPosCurrentBuffer.begin())) {
+          notMoving++;
+          if (notMoving > 10) {
+            notMoving = 0;
+            m_trocarMoveActive = false;
+          }
+        }
+        lastTrocarGpiPosCurrentBuffer = m_trocarGpiPosCurrentBuffer;
+      }
+    }
+
+    rate.sleep();
+  }
+  ROS_ERROR("trocarMove exited");
 }
 /*------------------------------------------------------------------------}}}-*/

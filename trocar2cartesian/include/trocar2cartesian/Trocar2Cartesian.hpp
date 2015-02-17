@@ -14,6 +14,7 @@
 // custom includes
 #include <trocar2cartesian_msgs/TrocarPose.h>
 #include <trocar2cartesian_msgs/SetTrocar.h>
+#include <GeneralPurposeInterpolator.hpp>
 
 // forward declarations
 
@@ -27,6 +28,10 @@ class Trocar2Cartesian
     // typedefs
 
     // const static member variables
+    static const int trocarParams = 3;
+    static constexpr double m_velMax = 0.3;
+    static constexpr double m_accelMax = 10.0;
+    static constexpr double m_trocarPeriod = 0.01;
  
     // static utility functions
 
@@ -57,13 +62,15 @@ class Trocar2Cartesian
     bool setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& request, trocar2cartesian_msgs::SetTrocar::Response& response);
     void setTrocarPoseCallback(const trocar2cartesian_msgs::TrocarPose::ConstPtr& trocarMsg);
     bool moveIntoTrocar(const tf::Pose& target, double velocity_translation, double velocity_rotation);
-    void move(const trocar2cartesian_msgs::TrocarPose& target, double velocity);
+    void trocarMoveLoop();
 
     // variables
     ros::NodeHandle m_node;
     ros::Publisher m_setCartesianTopicPub;
     ros::Subscriber m_getCartesianTopicSub;
     ros::ServiceServer m_setTrocarService;
+    ros::Publisher m_getTrocarTopicPub;
+    ros::Subscriber m_setTrocarTopicSub;
     tf::TransformListener m_tfListener;
 
     std::string m_robotName;
@@ -72,11 +79,28 @@ class Trocar2Cartesian
     tf::Pose m_trocarPose;
     geometry_msgs::Pose m_lastCartesianPose;
     std::mutex m_lastCartesianPoseMutex;
+    trocar2cartesian_msgs::TrocarPose m_lastTrocarPose;
+    std::mutex m_lastTrocarPoseMutex;
     geometry_msgs::Pose m_targetCartesianPose;
     std::string m_instrument_tip_frame;
     tf::StampedTransform m_instrument_tipMVflange; // assume this constant
+    tf::Transform m_instrument_tipMVflangeInverse; // assume this constant
     bool m_publishTrocarTfThreadRunning = false;
     std::thread m_publishTrocarTfThread;
+    bool m_inTrocar = false;
+
+    bool m_trocarMoveActive = false;
+    std::mutex m_trocarMoveActiveMutex;
+    GeneralPurposeInterpolator m_trocarGpi;
+    std::vector<double> m_trocarGpiPosCurrentBuffer;
+    std::vector<double> m_trocarGpiPosTargetBuffer;
+    std::vector<double> m_trocarGpiPosMinBuffer;
+    std::vector<double> m_trocarGpiPosMaxBuffer;
+    std::vector<double> m_trocarGpiVelCurrentBuffer;
+    std::vector<double> m_trocarGpiVelMaxBuffer;
+    std::vector<double> m_trocarGpiAccelMaxBuffer;
+    std::thread m_trocarMoveThread;
+    bool m_trocarMoveThreadRunning = false;
 
 
     tf::TransformBroadcaster m_footfBroadcaster; // TODO rm debug only
