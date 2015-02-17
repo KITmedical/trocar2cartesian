@@ -384,7 +384,7 @@ Trocar2Cartesian::trocarMoveLoop()
         trocarPose.r = m_trocarGpiPosCurrentBuffer[0];
         trocarPose.theta = m_trocarGpiPosCurrentBuffer[1];
         trocarPose.phi = m_trocarGpiPosCurrentBuffer[2];
-        std::cout << trocarPose << std::endl;
+        //std::cout << trocarPose << std::endl;
         instrumentPose = trocarpose2pose(trocarPose);
         flangePose = instrumentPose * m_instrument_tipMVflangeInverse;
         tf::poseTFToMsg(flangePose, flangePoseMsg);
