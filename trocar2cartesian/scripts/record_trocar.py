@@ -9,6 +9,7 @@ import numpy as np
 from tf.transformations import *
 from geometry_msgs.msg import Pose
 from trocar2cartesian_msgs.srv import SetTrocarRequest
+from math import pi
 
 
 
@@ -41,7 +42,13 @@ def main(args):
   set_trocar_msg.trocar_frame = robot_base_tf
   set_trocar_msg.instrument_tip_frame = instrument_tip_tf
   set_trocar_msg.trocar_pose = translation_quaternion2pose_msg(position, quaternion)
-  print('Now move robot into trocar and afterwards:')
+  set_trocar_msg.limits.r_min = 0.01
+  set_trocar_msg.limits.r_max = 0.3
+  set_trocar_msg.limits.theta_max = pi/2
+  set_trocar_msg.limits.theta_max = pi
+  set_trocar_msg.limits.phi_min = -pi;
+  set_trocar_msg.limits.phi_max = pi;
+  print('Now move robot into trocar and afterwards (perhaps change limits):')
   print("rosservice call /robots/lwr1/set_trocar '\n%s\n'" % set_trocar_msg)
 
 
