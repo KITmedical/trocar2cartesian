@@ -58,12 +58,12 @@ Trocar2Cartesian::Trocar2Cartesian(const std::string& robotName, const std::stri
    m_trocarGpiVelMaxBuffer(trocarParams, m_velMax),
    m_trocarGpiAccelMaxBuffer(trocarParams, m_accelMax)
 {
-  m_trocarGpiPosMinBuffer[0] = 0.01;
-  m_trocarGpiPosMinBuffer[1] = M_PI/2;
-  m_trocarGpiPosMinBuffer[2] = -M_PI;
-  m_trocarGpiPosMaxBuffer[0] = 0.4;
-  m_trocarGpiPosMaxBuffer[1] = M_PI;
-  m_trocarGpiPosMaxBuffer[2] = M_PI;
+  m_trocarGpiPosMinBuffer[0] = m_rAbsoluteMin;
+  m_trocarGpiPosMinBuffer[1] = m_thetaAbsoluteMin;
+  m_trocarGpiPosMinBuffer[2] = m_phiAbsoluteMin;
+  m_trocarGpiPosMaxBuffer[0] = m_rAbsoluteMax;
+  m_trocarGpiPosMaxBuffer[1] = m_thetaAbsoluteMax;
+  m_trocarGpiPosMaxBuffer[2] = m_phiAbsoluteMax;
   m_trocarGpi.setXTarget(m_trocarGpiPosTargetBuffer);
   m_trocarGpi.setXLast(m_trocarGpiPosCurrentBuffer);
   m_trocarGpi.setVLast(m_trocarGpiVelCurrentBuffer);
@@ -273,6 +273,17 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
     return false;
   }
 
+  m_rMin = request.limits.r_min;
+  m_rMax = request.limits.r_max;
+  m_thetaMin = request.limits.theta_min;
+  m_thetaMax = request.limits.theta_max;
+  m_phiMin = request.limits.phi_min;
+  m_phiMax = request.limits.phi_max;
+  if (!withinTrocarLimits(initial_instrument_tip_trocarpose)) {
+    ROS_ERROR("Initial trocar position would violate trocar limits");
+    return false;
+  }
+
   if (!moveIntoTrocar(reprojected_flange_base, 0.1, 0.1)) {
     ROS_ERROR("Robot could not move into trocar");
     return false;
@@ -294,6 +305,11 @@ Trocar2Cartesian::setTrocarPoseCallback(const trocar2cartesian_msgs::TrocarPose:
 {
   if (trocarMsg->instrument_tip_frame != m_instrument_tip_frame) {
     ROS_ERROR("instrument_tip_frame in message does not match instrument_tip_frame at setup");
+    return;
+  }
+
+  if (!withinTrocarLimits(*trocarMsg)) {
+    ROS_ERROR("Target trocar position violates trocar limits");
     return;
   }
 
@@ -404,5 +420,13 @@ Trocar2Cartesian::trocarMoveLoop()
     rate.sleep();
   }
   ROS_ERROR("trocarMove exited");
+}
+
+bool
+Trocar2Cartesian::withinTrocarLimits(const trocar2cartesian_msgs::TrocarPose& trocarMsg)
+{
+  return m_rMin <= trocarMsg.r && trocarMsg.r <= m_rMax
+         && m_thetaMin <= trocarMsg.theta && trocarMsg.theta <= m_thetaMax
+         && m_phiMin <= trocarMsg.phi && trocarMsg.phi <= m_phiMax;
 }
 /*------------------------------------------------------------------------}}}-*/

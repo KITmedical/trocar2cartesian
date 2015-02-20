@@ -29,9 +29,15 @@ class Trocar2Cartesian
 
     // const static member variables
     static const int trocarParams = 3;
-    static constexpr double m_velMax = 0.3;
-    static constexpr double m_accelMax = 10.0;
+    static constexpr double m_velMax = 0.2;
+    static constexpr double m_accelMax = 5.0;
     static constexpr double m_trocarPeriod = 0.01;
+    static constexpr double m_rAbsoluteMin = 0.01;
+    static constexpr double m_rAbsoluteMax = 0.3;
+    static constexpr double m_thetaAbsoluteMin = M_PI/2;
+    static constexpr double m_thetaAbsoluteMax = M_PI;
+    static constexpr double m_phiAbsoluteMin = -M_PI;
+    static constexpr double m_phiAbsoluteMax = M_PI;
  
     // static utility functions
 
@@ -63,6 +69,7 @@ class Trocar2Cartesian
     void setTrocarPoseCallback(const trocar2cartesian_msgs::TrocarPose::ConstPtr& trocarMsg);
     bool moveIntoTrocar(const tf::Pose& target, double velocity_translation, double velocity_rotation);
     void trocarMoveLoop();
+    bool withinTrocarLimits(const trocar2cartesian_msgs::TrocarPose& trocarMsg);
 
     // variables
     ros::NodeHandle m_node;
@@ -88,6 +95,13 @@ class Trocar2Cartesian
     bool m_publishTrocarTfThreadRunning = false;
     std::thread m_publishTrocarTfThread;
     bool m_inTrocar = false;
+
+    double m_rMin = m_rAbsoluteMin;
+    double m_rMax = m_rAbsoluteMax;
+    double m_thetaMin = m_thetaAbsoluteMin;
+    double m_thetaMax = m_thetaAbsoluteMax;
+    double m_phiMin = m_phiAbsoluteMin;
+    double m_phiMax = m_phiAbsoluteMax;
 
     bool m_trocarMoveActive = false;
     std::mutex m_trocarMoveActiveMutex;

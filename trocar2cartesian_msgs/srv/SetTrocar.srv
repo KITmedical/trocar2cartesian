@@ -1,11 +1,6 @@
 string trocar_frame
 geometry_msgs/Pose trocar_pose
 string instrument_tip_frame
-float64 r_min
-float64 r_max
-float64 theta_min
-float64 theta_max
-float64 phi_min
-float64 phi_max
+TrocarLimits limits
 ---
 bool success
