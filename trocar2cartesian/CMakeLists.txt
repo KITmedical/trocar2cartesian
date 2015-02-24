@@ -117,7 +117,7 @@ add_executable(trocar2cartesian_node src/trocar2cartesian_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(trocar2cartesian_node trocar2cartesian_generate_messages_cpp)
+add_dependencies(trocar2cartesian_node trocar2cartesian_msgs_generate_messages_cpp)
 
 target_link_libraries(trocar2cartesian
   ${Eigen_LIBRARIES}

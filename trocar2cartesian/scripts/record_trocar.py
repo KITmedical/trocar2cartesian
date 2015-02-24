@@ -41,7 +41,7 @@ def main(args):
   set_trocar_msg = SetTrocarRequest()
   set_trocar_msg.trocar_frame = robot_base_tf
   set_trocar_msg.instrument_tip_frame = instrument_tip_tf
-  set_trocar_msg.trocar_pose = translation_quaternion2pose_msg(position, quaternion)
+  set_trocar_msg.trocar_pose = translation_quaternion2pose_msg(position, (0, 0, 0, 1)) # use world orientation
   set_trocar_msg.limits.r_min = 0.01
   set_trocar_msg.limits.r_max = 0.3
   set_trocar_msg.limits.theta_max = pi/2
