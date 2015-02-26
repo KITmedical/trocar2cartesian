@@ -280,7 +280,7 @@ Trocar2Cartesian::setTrocarCallback(trocar2cartesian_msgs::SetTrocar::Request& r
   m_phiMin = request.limits.phi_min;
   m_phiMax = request.limits.phi_max;
   if (!withinTrocarLimits(initial_instrument_tip_trocarpose)) {
-    ROS_ERROR("Initial trocar position would violate trocar limits");
+    ROS_ERROR_STREAM("Initial trocar position would violate trocar limits. Limits:\n" << request.limits << "Initial:\n" << initial_instrument_tip_trocarpose);
     return false;
   }
 
