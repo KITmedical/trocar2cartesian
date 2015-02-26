@@ -29,8 +29,8 @@ class Trocar2Cartesian
 
     // const static member variables
     static const int trocarParams = 3;
-    static constexpr double m_velMax = 0.2;
-    static constexpr double m_accelMax = 5.0;
+    static constexpr double m_velMax = 0.05;
+    static constexpr double m_accelMax = 1.0;
     static constexpr double m_trocarPeriod = 0.01;
     static constexpr double m_rAbsoluteMin = 0.01;
     static constexpr double m_rAbsoluteMax = 0.3;
